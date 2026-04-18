@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "ScoreEvent",
+  "namespace": "com.sporty.testtask.avro",
+  "fields": [
+    {"name": "eventId",      "type": "string"},
+    {"name": "currentScore", "type": "string"},
+    {"name": "timestamp",    "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}

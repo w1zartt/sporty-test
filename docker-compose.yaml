@@ -1,0 +1,104 @@
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      # KRaft mode settings
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+      # Listener configuration
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:9093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Replication settings
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # Other settings
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      # JMX monitoring
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+
+      # Log directory
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.7
+    container_name: schema-registry
+    hostname: schema-registry
+    ports:
+      - "8094:8081"
+      - "9999:9999"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC: _schemas
+      SCHEMA_REGISTRY_SCHEMA_REGISTRY_GROUP_ID: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_TOPIC_REPLICATION_FACTOR: 1
+      SCHEMA_REGISTRY_DEBUG: 'true'
+      SCHEMA_REGISTRY_JMX_HOSTNAME: schema-registry
+      SCHEMA_REGISTRY_JMX_PORT: 9999
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://schema-registry:8081/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  event-source:
+    build:
+      context: ./event-source
+    container_name: event-source
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8081/events/ping/score" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ./testapp
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      EVENT_SOURCE_SERVICE_URL: http://event-source:8081
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    depends_on:
+      kafka:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      event-source:
+        condition: service_healthy
+
+volumes:
+  kafka-data:

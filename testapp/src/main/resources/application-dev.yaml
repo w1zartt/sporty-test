@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: test
+    domain-properties:
+      sport-events-source:
+        url: ${EVENT_SOURCE_SERVICE_URL:http://localhost:8081}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8094}
+    consumer:
+      properties:
+        schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8094}
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
