@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+
+# Gradle
+testapp/build/
+testapp/.gradle/
+
+# Node
+event-source/node_modules/
